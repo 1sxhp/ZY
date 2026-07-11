@@ -557,14 +557,41 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }
 
     function sendCallEvent(icon, label, detail) {
-        if (typeof window._addCallEvent === 'function') {
-            window._addCallEvent(icon, label, detail);
-        } else if (typeof window.messages !== 'undefined') {
-            // 降级：直接写入 messages 数组（适用于 beforeunload 等异步不可用场景）
-            window.messages.push({
-                id: Date.now() + Math.random(),
-                sender: 'system',
-                text: label + (detail ? ' · ' + detail : ''),
+    if (typeof window._addCallEvent === 'function') {
+        window._addCallEvent(icon, label, detail);
+    } else if (typeof window.messages !== 'undefined') {
+    }
+    
+    // ========== 新增：来电铃声播放逻辑 ==========
+// 获取音频元素（需要在页面中预先放置 <audio id="ringtone">）
+var audio = document.getElementById('ringtone');
+var answerBtn = document.getElementById('answerBtn');
+
+if (audio) {
+    // 尝试自动播放
+    audio.currentTime = 0;
+    audio.play().catch(function(error) {
+        // 如果自动播放被阻止，显示接听按钮
+        console.log("自动播放被阻止，显示接听按钮");
+        if (answerBtn) {
+            answerBtn.style.display = 'block';
+            // 点击接听按钮时播放
+            answerBtn.onclick = function() {
+                audio.currentTime = 0;
+                audio.play();
+                answerBtn.style.display = 'none';
+            };
+        }
+    });
+}
+// ========== 新增结束 ==========
+
+// 降级：直接写入messages数组（适用于beforeunload等异步不可用场景）
+window.messages.push({
+    id: Date.now() + Math.random(),
+    sender: 'system',
+    text: label + (detail ? '..' + detail : '')
+});
                 timestamp: new Date(),
                 status: 'received',
                 type: 'call-event',
