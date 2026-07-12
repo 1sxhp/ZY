@@ -557,34 +557,72 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }
 
     function sendCallEvent(icon, label, detail) {
+    // 优先调用全局处理器
     if (typeof window._addCallEvent === 'function') {
         window._addCallEvent(icon, label, detail);
-    } else if (typeof window.messages !== 'undefined') {
+        // 尝试播放来电铃（如果页面提供了 <audio id="ringtone">）
+        const audio = document.getElementById('ringtone');
+        const answerBtn = document.getElementById('answerBtn');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(function (error) {
+                console.log('自动播放被阻止，显示接听按钮');
+                if (answerBtn) {
+                    answerBtn.style.display = 'block';
+                    answerBtn.onclick = function () {
+                        audio.currentTime = 0;
+                        audio.play();
+                        answerBtn.style.display = 'none';
+                    };
+                }
+            });
+        }
+        return;
     }
-    
-    // ========== 新增：来电铃声播放逻辑 ==========
-    // 获取音频元素（需要在页面中预先放置 <audio id="ringtone">）
-    var audio = document.getElementById('ringtone');
-    var answerBtn = document.getElementById('answerBtn');
-    
-    if (audio) {
-        // 尝试自动播放
-        audio.currentTime = 0;
-        audio.play().catch(function(error) {
-            // 如果自动播放被阻止，显示接听按钮
-            console.log('自动播放被阻止，显示接听按钮');
-            if (answerBtn) {
-                answerBtn.style.display = 'block';
-                // 点击接听按钮时播放
-                answerBtn.onclick = function() {
-                    audio.currentTime = 0;
-                    audio.play();
-                    answerBtn.style.display = 'none';
-                };
-            }
+
+    // 降级：直接写入 messages 数组（若存在）
+    if (typeof window.messages !== 'undefined' && Array.isArray(window.messages)) {
+        window.messages.push({
+            id: Date.now() + Math.random(),
+            sender: 'system',
+            text: label + (detail ? '..' + detail : ''),
+            timestamp: new Date(),
+            status: 'received',
+            type: 'call-event',
+            callIcon: icon || 'fa-video',
+            callDetail: detail || null,
+            favorited: false,
+            note: null,
         });
+        // 同样尝试播放铃声（如上）
+        const audio = document.getElementById('ringtone');
+        const answerBtn = document.getElementById('answerBtn');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(function (error) {
+                console.log('自动播放被阻拦，显示接听按钮');
+                if (answerBtn) {
+                    answerBtn.style.display = 'block';
+                    answerBtn.onclick = function () {
+                        audio.currentTime = 0;
+                        audio.play();
+                        answerBtn.style.display = 'none';
+                    };
+                }
+            });
+        }
+        return;
     }
-    // ========== 新增结束 ==========
+
+    // 否则轮询等待 _addCallEvent 出现（原来的重试逻辑）
+    let tries = 0;
+    const t = setInterval(() => {
+        if (typeof window._addCallEvent === 'function') {
+            clearInterval(t);
+            window._addCallEvent(icon, label, detail);
+        }
+        if (++tries > 25) clearInterval(t);
+    }, 200);
 }
 
 // 降级：直接写入messages数组（适用于beforeunload等异步不可用场景）
