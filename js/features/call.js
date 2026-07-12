@@ -625,33 +625,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }, 200);
 }
 
-// 降级：直接写入messages数组（适用于beforeunload等异步不可用场景）
-window.messages.push({
-    id: Date.now() + Math.random(),
-    sender: 'system',
-    text: label + (detail ? '..' + detail : '')
-});
-                timestamp: new Date(),
-                status: 'received',
-                type: 'call-event',
-                callIcon: icon || 'fa-video',
-                callDetail: detail || null,
-                favorited: false,
-                note: null,
-            });
-        } else {
-            let tries = 0;
-            const t = setInterval(() => {
-                if (typeof window._addCallEvent === 'function') {
-                    clearInterval(t);
-                    window._addCallEvent(icon, label, detail);
-                }
-                if (++tries > 25) clearInterval(t);
-            }, 200);
-        }
-    }
-
-    function sendCallMsg(dur) {
+  function sendCallMsg(dur) {
         if (dur < 2000) return;
         sendCallEvent('fa-video', '视频通话已结束', fmt(dur));
     }
